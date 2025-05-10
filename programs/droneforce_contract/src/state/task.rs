@@ -42,6 +42,9 @@ pub struct TaskAccount {
     pub geofencing_enabled: bool,    // 1 byte
     pub description: String,         // 4 + 256 bytes (max)
     pub bump: u8,                    // 1 byte (store bump for future validation)
+    pub validator_pubkey: Pubkey,    // 32 bytes (validator assigned to verify this task)
+    pub verification_result: bool,   // 1 byte (whether verification passed or failed)
+    pub verification_report_hash: [u8; 32], // 32 bytes (hash of the verification report)
 }
 
 impl TaskAccount {
@@ -62,6 +65,9 @@ impl TaskAccount {
         2 +     // altitude: u16
         1 +     // geofencing_enabled: bool
         4 + 256 + // description: String (max 256 chars)
-        1       // bump: u8
+        1 +     // bump: u8
+        32 +    // validator_pubkey: Pubkey
+        1 +     // verification_result: bool
+        32      // verification_report_hash: [u8; 32]
     }
 }

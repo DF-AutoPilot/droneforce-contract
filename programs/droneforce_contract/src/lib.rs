@@ -24,6 +24,7 @@ pub mod droneforce_contract {
         altitude: u16,
         geofencing_enabled: bool,
         description: String,
+        validator_pubkey: Pubkey,
     ) -> Result<()> {
         create_task::handler(
             ctx,
@@ -35,6 +36,7 @@ pub mod droneforce_contract {
             altitude,
             geofencing_enabled,
             description,
+            validator_pubkey
         )
     }
 
@@ -49,6 +51,15 @@ pub mod droneforce_contract {
         signature: [u8; 64],
     ) -> Result<()> {
         complete_task::handler(ctx, arweave_tx_id, log_hash, signature)
+    }
+    
+    pub fn record_verification(
+        ctx: Context<RecordVerification>,
+        task_id: String,
+        verification_result: bool,
+        verification_report_hash: [u8; 32],
+    ) -> Result<()> {
+        record_verification::handler(ctx, task_id, verification_result, verification_report_hash)
     }
 }
 

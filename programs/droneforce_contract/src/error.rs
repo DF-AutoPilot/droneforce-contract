@@ -19,4 +19,10 @@ pub enum DroneforceError {
     
     #[msg("Invalid longitude value")]
     InvalidLongitude,
+    
+    #[msg("Unauthorized validator")]
+    UnauthorizedValidator,
+    
+    #[msg("Task has already been verified")]
+    AlreadyVerified,
 }

@@ -31,6 +31,7 @@ pub fn handler(
     altitude: u16,
     geofencing_enabled: bool,
     description: String,
+    validator_pubkey: Pubkey,
 ) -> Result<()> {
     // Convert coordinates to fixed-point representation
     let lat_fixed = helpers::float_to_fixed(location_lat);
@@ -51,6 +52,9 @@ pub fn handler(
     task.geofencing_enabled = geofencing_enabled;
     task.description = description;
     task.bump = bump;
+    task.validator_pubkey = validator_pubkey;
+    task.verification_result = false;
+    task.verification_report_hash = [0u8; 32];
     
     // Initialize standard fields
     let timestamp = Clock::get()?.unix_timestamp;
