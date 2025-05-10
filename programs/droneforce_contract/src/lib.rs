@@ -19,6 +19,40 @@ pub mod task_types {
     pub const PHOTOGRAPHY: u8 = 4;
 }
 
+// Helper functions module - outside the program module
+mod helpers {
+    use super::*;
+    
+    pub fn validate_task_input(description: &str) -> Result<()> {
+        // Validate description length to prevent account size issues
+        require!(description.len() <= 256, DroneforceError::DescriptionTooLong);
+        
+        // Add more validations as needed
+        Ok(())
+    }
+
+    pub fn initialize_task_account(task: &mut TaskAccount, creator: Pubkey, timestamp: i64) {
+        // Set initial values
+        task.status = status::CREATED;
+        task.operator = Pubkey::from_str("11111111111111111111111111111111").unwrap(); // Default to system program
+        task.arweave_tx_id = String::new();
+        task.log_hash = [0; 32];
+        task.signature = [0; 64];
+        task.timestamp = timestamp;
+        task.creator = creator;
+    }
+    
+    pub fn validate_completion_data(arweave_tx_id: &str) -> Result<()> {
+        // Validate Arweave TX ID length
+        require!(
+            arweave_tx_id.len() <= 64,
+            DroneforceError::ArweaveTxIdTooLong
+        );
+        
+        Ok(())
+    }
+}
+
 #[program]
 pub mod droneforce_contract {
     use super::*;
@@ -34,23 +68,13 @@ pub mod droneforce_contract {
         geofencing_enabled: bool,
         description: String,
     ) -> Result<()> {
+        // Validate inputs first
+        helpers::validate_task_input(&description)?;
+        
         let task = &mut ctx.accounts.task;
+        let bump = ctx.bumps.task;
         
-        // Set creator
-        task.creator = ctx.accounts.creator.key();
-        
-        // Set initial values
-        task.status = status::CREATED;
-        task.operator = Pubkey::from_str("11111111111111111111111111111111").unwrap(); // Default to system program
-        task.arweave_tx_id = String::new();
-        task.log_hash = [0; 32];
-        task.signature = [0; 64];
-        task.timestamp = Clock::get()?.unix_timestamp;
-        
-        // Validate description length to prevent account size issues
-        require!(description.len() <= 1000, DroneforceError::DescriptionTooLong);
-        
-        // Set task details
+        // Store task metadata
         task.location_lat = location_lat;
         task.location_lng = location_lng;
         task.area_size = area_size;
@@ -58,6 +82,11 @@ pub mod droneforce_contract {
         task.altitude = altitude;
         task.geofencing_enabled = geofencing_enabled;
         task.description = description;
+        task.bump = bump;
+        
+        // Initialize standard fields
+        let timestamp = Clock::get()?.unix_timestamp;
+        helpers::initialize_task_account(task, ctx.accounts.creator.key(), timestamp);
         
         emit!(TaskCreatedEvent {
             task_id: task_id.clone(),
@@ -87,6 +116,8 @@ pub mod droneforce_contract {
         Ok(())
     }
 
+
+
     pub fn complete_task(
         ctx: Context<CompleteTask>,
         arweave_tx_id: String,
@@ -104,18 +135,15 @@ pub mod droneforce_contract {
         // Validate current status
         require!(task.status == status::ACCEPTED, DroneforceError::InvalidTaskStatus);
         
+        // Validate completion data
+        helpers::validate_completion_data(&arweave_tx_id)?;
+        
         // Update task with completion data
         task.arweave_tx_id = arweave_tx_id;
         task.log_hash = log_hash;
         task.signature = signature;
         task.status = status::COMPLETED;
         task.timestamp = Clock::get()?.unix_timestamp;
-        
-        // Validate Arweave TX ID length
-        require!(
-            task.arweave_tx_id.len() <= 100,
-            DroneforceError::ArweaveTxIdTooLong
-        );
         
         emit!(TaskCompletedEvent {
             operator: ctx.accounts.operator.key(),
@@ -147,7 +175,10 @@ pub struct CreateTask<'info> {
 
 #[derive(Accounts)]
 pub struct AcceptTask<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = task.status == status::CREATED @ DroneforceError::InvalidTaskStatus
+    )]
     pub task: Account<'info, TaskAccount>,
     
     pub operator: Signer<'info>,
@@ -155,7 +186,11 @@ pub struct AcceptTask<'info> {
 
 #[derive(Accounts)]
 pub struct CompleteTask<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = task.status == status::ACCEPTED @ DroneforceError::InvalidTaskStatus,
+        constraint = task.operator == operator.key() @ DroneforceError::UnauthorizedOperator
+    )]
     pub task: Account<'info, TaskAccount>,
     
     pub operator: Signer<'info>,
@@ -166,7 +201,7 @@ pub struct TaskAccount {
     pub creator: Pubkey,             // 32 bytes
     pub operator: Pubkey,            // 32 bytes
     pub status: u8,                  // 1 byte
-    pub arweave_tx_id: String,       // 4 + 100 bytes (max)
+    pub arweave_tx_id: String,       // 4 + 64 bytes (max)
     pub log_hash: [u8; 32],          // 32 bytes
     pub signature: [u8; 64],         // 64 bytes
     pub timestamp: i64,              // 8 bytes
@@ -176,7 +211,8 @@ pub struct TaskAccount {
     pub task_type: u8,               // 1 byte
     pub altitude: u16,               // 2 bytes
     pub geofencing_enabled: bool,    // 1 byte
-    pub description: String,         // 4 + 1000 bytes (max)
+    pub description: String,         // 4 + 256 bytes (max)
+    pub bump: u8,                    // 1 byte (store bump for future validation)
 }
 
 impl TaskAccount {
@@ -186,7 +222,7 @@ impl TaskAccount {
         32 +    // creator: Pubkey
         32 +    // operator: Pubkey
         1 +     // status: u8
-        4 + 100 + // arweave_tx_id: String (max 100 chars)
+        4 + 64 + // arweave_tx_id: String (max 64 chars)
         32 +    // log_hash: [u8; 32]
         64 +    // signature: [u8; 64]
         8 +     // timestamp: i64
@@ -196,7 +232,8 @@ impl TaskAccount {
         1 +     // task_type: u8
         2 +     // altitude: u16
         1 +     // geofencing_enabled: bool
-        4 + 1000  // description: String (max 1000 chars)
+        4 + 256 + // description: String (max 256 chars)
+        1       // bump: u8
     }
 }
 
