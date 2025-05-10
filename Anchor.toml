@@ -1,9 +1,11 @@
+[toolchain]
+
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
 [programs.devnet]
-droneforce_contract = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+droneforce_contract = "DJbDiPY8wJQRjCor1rywA4ZuwUSrybAcYzAgc9F6njox"
 
 [registry]
 url = "https://api.apr.dev"

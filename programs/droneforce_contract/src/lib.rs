@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("DJbDiPY8wJQRjCor1rywA4ZuwUSrybAcYzAgc9F6njox");
 
 // Task status constants
 pub mod status {
@@ -47,6 +47,9 @@ pub mod droneforce_contract {
         task.signature = [0; 64];
         task.timestamp = Clock::get()?.unix_timestamp;
         
+        // Validate description length to prevent account size issues
+        require!(description.len() <= 1000, DroneforceError::DescriptionTooLong);
+        
         // Set task details
         task.location_lat = location_lat;
         task.location_lng = location_lng;
@@ -55,9 +58,6 @@ pub mod droneforce_contract {
         task.altitude = altitude;
         task.geofencing_enabled = geofencing_enabled;
         task.description = description;
-        
-        // Validate description length to prevent account size issues
-        require!(description.len() <= 1000, DroneforceError::DescriptionTooLong);
         
         emit!(TaskCreatedEvent {
             task_id: task_id.clone(),
