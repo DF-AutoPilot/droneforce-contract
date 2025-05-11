@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-droneforce_contract = "DJbDiPY8wJQRjCor1rywA4ZuwUSrybAcYzAgc9F6njox"
+droneforce_contract = "ABHeKDbJ82GEeTAH7K6eNgXZFmLGzSrYFFTvZUtyksfJ"
 
 [registry]
 url = "https://api.apr.dev"

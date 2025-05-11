@@ -8,7 +8,7 @@ mod helpers;
 use instructions::*;
 use state::task::*;
 
-declare_id!("DJbDiPY8wJQRjCor1rywA4ZuwUSrybAcYzAgc9F6njox");
+declare_id!("ABHeKDbJ82GEeTAH7K6eNgXZFmLGzSrYFFTvZUtyksfJ");
 
 #[program]
 pub mod droneforce_contract {
